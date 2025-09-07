@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import datetime as _dt
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag, NavigableString
@@ -22,7 +22,6 @@ PRESS_DATE_RE = re.compile(r"monetary(\d{8})", re.I)
 # Date parsing helpers
 MONTH_RE = re.compile(r"\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\b", re.I)
 YEAR_IN_HDR = re.compile(r"(19|20)\d{2}")
-YEAR_IN_HREF = re.compile(r"(19|20)\d{2}")
 
 MONTH_TO_NUM = {
 	"jan": 1, "january": 1,
@@ -68,13 +67,6 @@ def _nearest_year_heading(tag: Tag) -> Optional[int]:
 		if isinstance(prev, Tag) and prev.name in {"h2", "h3", "h4"}:
 			text = prev.get_text(" ", strip=True)
 			m = YEAR_IN_HDR.search(text)
-			if m:
-				return int(m.group(0))
-	for i, prev in enumerate(tag.previous_elements):
-		if i > 400:
-			break
-		if isinstance(prev, Tag):
-			m = YEAR_IN_HDR.search(prev.get_text(" ", strip=True))
 			if m:
 				return int(m.group(0))
 	return None
@@ -238,13 +230,11 @@ def _date_from_iso(s: Optional[str]) -> Optional[_dt.date]:
 def parse_current_calendar(html: str) -> List[CurrentCalendarEntry]:
 	soup = BeautifulSoup(html, "lxml")
 	candidate_containers: Set[Tag] = set()
-	# Anchor-based collection
 	for a in soup.find_all("a", href=True):
 		href = a["href"].strip()
 		label = a.get_text(" ", strip=True).lower()
 		if STATEMENT_HTML_RE.search(href) or MINUTES_HTML_RE.search(href) or PRESSCONF_HTML_RE.search(href) or any(k in label for k in ["statement", "minutes", "press"]):
 			candidate_containers.add(_container_for(a))
-	# Qualifier-only rows (unscheduled/notation vote/cancelled)
 	for node in soup.find_all(["li", "p", "div", "tr"]):
 		text = node.get_text(" ", strip=True)
 		ltext = text.lower()
@@ -259,20 +249,14 @@ def parse_current_calendar(html: str) -> List[CurrentCalendarEntry]:
 			continue
 		year = _nearest_year_heading(c)
 		if not year:
-			years = {int(m.group(0)) for a in c.find_all("a", href=True) for m in [YEAR_IN_HREF.search(a["href"])] if m}
-			if len(years) == 1:
-				year = years.pop()
-		if not year:
 			continue
 
 		links, has_proj = _collect_links(c)
 		start_date, end_date, meeting_type, is_cancelled, has_sep = _parse_dates_and_flags(year, date_prefix, has_projection=has_proj)
 		if not start_date:
 			continue
-		# Always require Statement for Scheduled (non-cancelled) entries
 		if meeting_type == "Scheduled" and not is_cancelled and not links["statement_url_html"]:
 			continue
-		# If Statement exists, ensure its press date equals end_date
 		press_dt = _extract_press_date_from_url(links["statement_url_html"]) if links["statement_url_html"] else None
 		end_dt = _date_from_iso(end_date)
 		if links["statement_url_html"] and press_dt and end_dt and press_dt != end_dt:
