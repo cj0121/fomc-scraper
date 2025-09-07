@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fomc-scraper"
+version = "0.1.0"
+description = "Parser and scraper for Federal Reserve FOMC calendars (current and historical)."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "FOMC Scraper", email = "dev@example.com" }]
+dependencies = [
+  "requests>=2.31.0",
+  "beautifulsoup4>=4.12.2",
+  "lxml>=5.2.2",
+  "python-dateutil>=2.9.0.post0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2.0",
+  "pytest-cov>=5.0.0",
+  "types-requests",
+  "types-python-dateutil",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["fomc_scraper*"]
+exclude = ["tests*"]
+
+
