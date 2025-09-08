@@ -23,7 +23,7 @@ dist/
 .vscode/
 .idea/
 
-current_calendar.csv
+*.csv
 
 
 
